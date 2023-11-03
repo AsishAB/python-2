@@ -11,12 +11,14 @@ names = []
 marks = []
 student = ''
 error = False
+max_students = 0
+error_valid_number_message = "Error !! Please enter a valid number"
 
 while True:
     try:
         max_students = int(input("Enter the Maximum Number of Students "))
     except ValueError:
-        print("Error !! Please enter a valid integer")
+        print(error_valid_number_message)
         error = True
         continue
     else:
@@ -36,7 +38,7 @@ for i in range(0,max_students):
             marks.append(mark)
             student += f"{roll_number[i]}, {names[i]}, {marks[i]} \n"
         except ValueError:
-            print("Error !! Please enter a valid integer")
+            print(error_valid_number_message)
             error = True
             continue
         else:
