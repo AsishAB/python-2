@@ -2,7 +2,7 @@ import os
 import time
 
 no_of_times_the_commit_runs = 0
-max_no_of_times_the_commit_runs = 1
+max_no_of_times_the_commit_runs = 2
 delay_timer_to_wait_for_adding_files_to_stage = 2
 
 for i in range(no_of_times_the_commit_runs, max_no_of_times_the_commit_runs):
