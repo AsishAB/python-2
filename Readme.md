@@ -14,3 +14,6 @@ Write a code that will take input of the total number of students
    Then write the details of each student in a file called Marks.txt
       in the form student_roll_number, student_name, student_marks
    And then, read from the same file and display the output
+
+
+# IF THE NAME OF THE FILE IS THE SAME AS THE MODULE BEING IMPORTED, THERE MAY BE SOME ERROR
