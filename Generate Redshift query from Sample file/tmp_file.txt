@@ -1,0 +1,5 @@
+col_name                     NOTNULL                     VARCHAR2(35)             
+col_timestamp                NOTNULL                       TIMESTAMP         
+col_number                                              NUMBER(6)   
+col_name2                   NOTNULL                     VARCHAR2(35)                      
+col_name2                   NOTNULL                     NUMBER(35,8)                      

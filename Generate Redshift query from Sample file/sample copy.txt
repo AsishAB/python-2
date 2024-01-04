@@ -1,0 +1,5 @@
+col_name                     NOT NULL                     VARCHAR2(35 CHAR)             
+col_timestamp                NOT NULL                       TIMESTAMP(6)         
+col_number                                              NUMBER(6)   
+col_name2                   NOT NULL                     VARCHAR2(35 CHAR)                      
+col_name2                   NOT NULL                     NUMBER(35,8)                      
