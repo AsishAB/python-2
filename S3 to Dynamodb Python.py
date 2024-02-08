@@ -1,5 +1,6 @@
 '''
 Write a Code to read from a Master file (which contains a list of all file names), connect to S3 with each file name mentioned in the Master File, get the data from the bucket key and write it to Dynamodb
+
 '''
 
 import json
@@ -33,13 +34,35 @@ def read_from_dynamodb_by_partitionkey(item):
         )
         
         if 'Item' in data['Item']:
-            return data['Item']
+            return {
+                "success": 1
+                "data" : data['Item']
+
+            }
         else:
-            "No data found"
-       
+            return {
+                "success": 0
+                "data" : "No data found"
+
+            }       
+    except Exception as e:
+        return {
+                "success": 2
+                "data" : e
+
+            }
+def update_to_dynamodb(item):
+    try:
+        response = table.update_item(
+            Key=key,
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+            ReturnValues='UPDATED_NEW'
+        )
+
+        return f"Update Item succeeded: {response}"
     except Exception as e:
         return e
-    
    
 def lambda_handler(event, context):
     # bucket_name = event["Records"][0]["s3"]["bucket"]["name"]
@@ -50,12 +73,23 @@ def lambda_handler(event, context):
     file_name = body.split('\r\n')
     for fl in file_name:
         object_key_in_main_file = f"{prefix}/{fl}"
-        print(f"File Key = {object_key_in_main_file}")
+        # print(f"File Key = {object_key_in_main_file}")
         object_content = s3_client.get_object(Bucket=bucket_name, Key=object_key_in_main_file)
         file_content = object_content['Body'].read().decode('utf-8')
-        print(f"File Content in {fl} file = {file_content} ")
-        data_to_write = json.loads(file_content)
-        resp = write_to_dynamodb(data_to_write)
+        # print(f"File Content in {fl} file = {file_content} ")
+        data = json.loads(file_content)
+        read_key = {
+            'tbl_key': data.tbl_name
+        }
+        read_response = read_from_dynamodb_by_partitionkey(read_key)
+        print(read_response)
+        # resp = write_to_dynamodb(data_to_write)
+
+        # Specify the update expression and attribute values
+        update_expression = 'SET attribute_name = :new_value'
+        expression_attribute_values = {
+            ':new_value': 'UpdatedValue'
+        }
         response.append(resp)
         
     
