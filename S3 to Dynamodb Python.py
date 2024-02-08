@@ -33,7 +33,7 @@ def read_from_dynamodb_by_partitionkey(item):
                 Key = item
         )
         
-        if 'Item' in data['Item']:
+        if 'Item' in data:
             return {
                 "success": 1
                 "data" : data['Item']
