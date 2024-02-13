@@ -5,20 +5,17 @@ Write a Code to read from a Master file (which contains a list of all file names
 
 import json
 import boto3
+import datetime
 
 bucket_name = 'aws-bmo-podr'
-prefix = 'trigger-for-lambda-dynamodb'
-object_key = f'{prefix}/Main File.txt'
+# prefix = 'trigger-for-lambda-dynamodb'
+# object_key = f'{prefix}/Main File.txt'
 
 
 s3_client = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('table-example')
 
-item_to_add = {
-        'tbl_key ': 'tbl_1',
-        'tbl_name': 'AB'
-    }
     
 def write_to_dynamodb(item):
     try:
@@ -39,13 +36,19 @@ def read_from_dynamodb_by_partitionkey(item):
                 "success": 1,
                 "data" : data['Item']
 
-            }
-        else:
+            } 
+        elif 'Item' not in data:
             return {
                 "success": 0,
                 "data" : "No data found"
 
-            }       
+            }   
+        else:
+            return {
+                "success": 3,
+                "data" : "Error !!"
+
+            } 
     except Exception as e:
         return {
                 "success": 2,
@@ -64,39 +67,79 @@ def update_to_dynamodb(item, update_expression, expression_attribute_values):
         return f"Update Item succeeded: {update_response}"
     except Exception as e:
         return e
+def read_from_s3(bucket, key):
+    try:
+        object = s3_client.get_object(Bucket=bucket_name, Key=key)
+        body = object['Body'].read().decode('utf-8')
+        return body
+    except Exception as e:
+        raise Exception(e)
+def move_file_to_s3(local_file_path, bucket_name, s3_key):
+    try:
+        s3_client.upload_file(local_file_path, bucket_name, s3_key)
+    
+     except Exception as e:
+        raise Exception(e)
    
 def lambda_handler(event, context):
+    
     response = []
-    
-    # bucket_name = event["Records"][0]["s3"]["bucket"]["name"]
-    # object_key = event["Records"][0]["s3"]["object"]["key"]
-    
-    object = s3_client.get_object(Bucket=bucket_name, Key=object_key)
-    body = object['Body'].read().decode('utf-8')
-    file_name = body.split('\r\n')
-    for fl in file_name:
-        object_key_in_main_file = f"{prefix}/{fl}"
+    source_config_file_name = ''
+    config_file_version = ''
+    bucket_name = event["Records"][0]["s3"]["bucket"]["name"]
+    object_key = event["Records"][0]["s3"]["object"]["key"]
+    source_config_file_name = object_key.split("/")[1]
+    object = read_from_s3(bucket_name, object_key)
+    source_file_data = object['Body'].read().decode('utf-8')
+    source_file_data = json.loads(source_file_data)
+    if "file_names" not in source_file_data:
+        raise Exception("Error !! No key named file_names exist. The JSON should contain 'file_names' in array/list format ")
+    if not isinstance(source_file_data['file_names'], list):
+        raise Exception(("Error !! file_names is not a list/array"))
+        
+    config_file_names = source_file_data['file_names']   
+    for fl in config_file_names:
+        object_key_in_main_file = fl
+        config_file_version = object_key_in_main_file.split("/")[2]
         # print(f"File Key = {object_key_in_main_file}")
-        object_content = s3_client.get_object(Bucket=bucket_name, Key=object_key_in_main_file)
+        
+        object_content = read_from_s3(bucket_name, object_key_in_main_file)
+        
         file_content = object_content['Body'].read().decode('utf-8')
-        # print(f"File Content in {fl} file = {file_content} ")
-        data = json.loads(file_content)
-       
+        
+        config_file_values = json.loads(file_content)
+        
         read_key = {
-            'tbl_key': f"{data['tbl_key']}"
+            'tbl_key': f"{config_file_values['tbl_key']}"
         }
         read_response = read_from_dynamodb_by_partitionkey(read_key)
         if read_response['success'] == 0:
-            print(f"Success = {read_response['success']}, meaning READ")
-            resp = write_to_dynamodb(data)
+            print(f"Success = {read_response['success']}, meaning INSERT NEW COLUMN")
+            config_file_values["release_source_config_file"] = source_config_file_name
+            config_file_values["config_file_version"] = config_file_version
+            config_file_values["created_ts"] = str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            config_file_values["updated_ts"] = str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            print(f"Config File Values= {config_file_values}")
+            resp = write_to_dynamodb(config_file_values)
             response.append(resp)
         elif read_response['success'] == 1:
-            print(f"Success = {read_response['success']}, meaning WRITE")
-            update_expression = 'SET tbl_name = :new_value, table_id = :new_value2'
+            print(f"Success = {read_response['success']}, meaning UPDATE EXISTING COLUMN")
+            update_expression = '''
+                            SET tbl_name = :tbl_name_value, 
+                            release_source_config_file = :release_source_config_file_value,
+                            config_file_version = :config_file_version_value,
+                            updated_ts = :updated_ts_value
+                '''
             expression_attribute_values = {
-                 ':new_value': 'Helofknwlejnre_21321y2349',
-                 ':new_value2': '12312423432'
+                 ':tbl_name_value': config_file_values["tbl_name"],
+                 ':release_source_config_file_value': source_config_file_name,
+                 ':config_file_version_value': config_file_version,
+                 ':updated_ts_value': str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             }
+            print(f"Update Exp = {update_expression}")
+            print("\n")
+            print(f"Expression Attribute Values = {expression_attribute_values}")
+            # raise Exception("lsgrelgore")
             resp = update_to_dynamodb(read_key, update_expression, expression_attribute_values)
             response.append(resp)
         else:
@@ -119,5 +162,3 @@ def lambda_handler(event, context):
     print(response)
     return response
         
-    
-    
